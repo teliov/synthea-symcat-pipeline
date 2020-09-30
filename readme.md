@@ -5,7 +5,7 @@
 Medical data typically contains very sensitive information about the patients, this coupled with an increase in privacy rules surrounding access
 and utilization of data makes it especially difficult to access real patient electronic health records. 
 
-Another difficulty associated with access to real medical data is the need to properly anonymize the data by eliminating any links to the actual patient. There have been cases <a href='#ref1'>[1]</a>  where  actual patient recovery from anonymized data was indeed possible.
+Another difficulty associated with access to real medical data is the need to properly anonymize the data by eliminating any links to the actual patient. There have been cases where  actual patient recovery from anonymized data was indeed possible.
 
 These factors have led a number of research efforts to resort to the use of synthetically generated patient records using data from publicly available medical databases such as [PubMed](https://pubmed.ncbi.nlm.nih.gov/) or other sources such as medical literature,  published records of disease symptom relationships etc.
 
@@ -200,6 +200,47 @@ PATIENT,GENDER,RACE,ETHNICITY,AGE_BEGIN,AGE_END,PATHOLOGY,NUM_SYMPTOMS,SYMPTOMS
 
 The map between a hash and it's actual value can be extracted from the generated `conditions.json` and `symptoms.json` files.
 
-## References
+## Analysis and Results
 
-* <span id="ref1">[1]</span> Latanya Sweeney, Akua Abu, Julia Winn (2013). Identifying Participants in the Personal Genome Project by Name
+The analysis and results carried out on the generated data can be found in the [publicly available thesis document](https://repository.tudelft.nl/islandora/object/uuid%3A5b9d542f-7d61-4c11-9646-474be1b85fca?collection=education).
+
+An accompanying [Notebook Repository](https://github.com/teliov/thesis-notebooks) contains the Jupyter notebooks and scripts which were used when performing the analysis.
+
+A [Python library](https://github.com/teliov/thesislib) was also created to provide a common location for reusable components during the course of the project.
+
+Each of these repositories is documented to allow for easy navigation.
+
+## Symptom Modeling: An N.L.I.C.E. Approach
+
+During the course of the project one thing that became apparent was that a yes/no binary modeling of symptoms was not enough to make proper distinctions especially between conditions which showed similar symptoms. To tackle this problem, an alternative approach to Symptom Modeling was explored. Included in this repository (see `nlice/nlice.pdf` and `nlice/nlice.tex`) are more detailed explanations of this alternative modeling process. What follows is a summary of the content of the above mentioned documents.
+
+When a particular symptom is expressed, the current model simply marks the symptom as being present (i.e having a value of `1`). If it is absent, the value is `0`. However, in practice, other characteristics about the symptom's expression might be helpful in making a differential diagnosis. These characteristics are summarized with the N.L.I.C.E. acronym which is short for: Nature, Location, Intensity, Chronology and Excitation.
+
+Once again, Synthea's expressive generic module framework meant that as long as statistical relationships between these additional symptom descriptors and respective conditions were present then realistic data could also be generated.
+
+### Gathering Relevant Statistics
+
+The Symcat data source did not contain such extra descriptors and as a result the first step required searching relevant medical sources (literature, online databases, etc) for the statistics which were needed. This search was carried out by competent Medical professionals.
+
+### Generating NLICE Synthea Modules
+
+Once the statistics were generated, the next step required structuring the gathered data to allow easier Synthea module generation. Included in the [Notebook Repository](https://github.com/teliov/thesis-notebooks) - specifically the `definitions` folder -  are samples of this structured NLICE definitions.
+
+The [generated file](https://github.com/teliov/thesis-notebooks/blob/master/definitions/ai-med-plus.json) contains for each symptom within a condition an additional `nlice` object. The `nlice` object then also contains - where available - statistics about the different NLICE parameters.
+
+The generated file is then used in place of the `conditions.json` file when generating synthea compatible modules. Assuming the generated file is called: `ai_med-plus.json`, the command for generating Synthea compatible modules is then:
+
+```bash
+cd <path-to-repos>/symcat-to-synthea
+./main.py --gen_modules --symptoms_json ai_med_symptoms.json --conditions_json ai_med-plus.json --output output/modules --generator_mode 5 --prefix symcat_
+```
+
+In this case `ai_med_symptoms.json` can be json file with an empty object: `{}`. it is included only to maintain uniformity with the previous generation call. The main difference (except of course the different condition.json file) is the generator mode i.e `5`. This method encodes the NLICE characteristics in the generated module which will then be processed by Synthea when generating data.
+
+### Generating NLICE Data
+
+With these enriched NLICE modules, data can then be generated. A [modified version of Synthea (in the ecnodeNlice branch)](https://github.com/teliov/synthea/tree/encodeNlice) was created to utilize the NLICE information in the modules and generate the relevant data.
+
+The generated data can then be used to train machine learning models.
+
+Initial results (as can be seen in `nlice/nlice.pdf`) show that there is an improvement when comparing the the NLICE approach with the binary *yes/no* approach. However, because this was a proof of concept and the number of covered conditions/symptoms were quite small, a more extensive analysis needs to be done on a large condition-symptom space. Already without NLICE in the evaluated condition-symptom sample space, the non NLICE model performed pretty well.
